@@ -1,0 +1,162 @@
+---
+title: "Ethan McFarlin: HBS Quantitative Exercise"
+output: html_notebook
+---
+
+```{r}
+
+# 0. Install and/or load the relevant repositories
+
+library(tidyverse) # for performing data wrangling
+library(Hmisc) # for data labeling
+library(haven) # for reading DTA files
+
+
+```
+
+```{r}
+
+# 1. Load the CSV file
+
+df <- read_csv("nhgis0025_ds211_1925_county.csv") 
+
+```
+
+```{r}
+
+# 2a.  Rename AB84002 to acres_corn, and label it “Acres of harvested corn”; 2b. Rename AB84006 to acres_wheat, and label it “Acres of wheat”
+
+df2 <- df %>%
+  rename("acres_corn" = AB84002) %>%
+  rename("acres_wheat" = AB84006)
+
+label(df2$acres_corn) <- "Acres of harvested corn"
+label(df2$acres_wheat) <- "Acres of wheat"
+
+# 2c. Reduce the dataset to only the following variables: GISJOIN, YEAR, STATE, COUNTY, acres_corn, and acres_wheat
+
+df3 <- df2 %>%
+  select(GISJOIN, YEAR, STATE, COUNTY, acres_corn, acres_wheat)
+
+View(df3)
+
+```
+
+```{r}
+
+#3. Merge the current dataset with the “test_mergefile.dta” data file, based on the unique identifier GISJOIN, and keep only the observations appearing in both the original and merged‐in datasets. This will merge in three new variables: farms, acres_farmland, and tractors.
+
+merge_file <- read_dta("test_mergefile.dta")
+
+df4 <- df3 %>%
+  inner_join(merge_file, by = "GISJOIN") %>%
+  select(-ends_with(".y"))
+
+colnames(df4) <- gsub("\\.x$", "", colnames(df4))
+  
+View(df4)
+
+```
+
+```{r}
+
+# 4. Create two new variables for the percentage of farmland in corn and the percentage of farmland in wheat, naming them “pct_corn” and “pct_wheat”, and label the variables appropriately.
+df5 <- df4 %>%
+  mutate(
+    pct_corn = (acres_corn / farmland) * 100,
+    pct_wheat = (acres_wheat / farmland) * 100
+  )
+
+View(df5)
+
+
+```
+
+```{r}
+
+# 5. Find and report the average pct_corn and average pct_wheat in three states: Kansas, Iowa, and Michigan.
+
+averages <- df5 %>%
+  filter(STATE %in% c("Kansas", "Iowa", "Michigan")) %>%
+  group_by(STATE) %>%
+  summarise(
+    avg_pct_corn = mean(pct_corn, na.rm = TRUE),
+    avg_pct_wheat = mean(pct_wheat, na.rm = TRUE)
+  )
+
+View(averages)
+
+# Iowa: avg_pct_corn: 26.09%, avg_pct_wheat: 1.42%
+# Kansas: avg_pct_corn: 12.94%, avg_pct_wheat: 20.27%
+# Michigan: avg_pct_corn: 3.11%, avg_pct_wheat: 3.06%
+
+```
+
+```{r}
+
+# 6. Create a scatter plot of pct_corn against pct_wheat, including a line‐of‐best‐fit.
+
+hbs_maroon <- "#A41034"
+hbs_black <- "#000000"
+
+scatterPlotVisualization <- ggplot(df5, aes(x = pct_corn, y = pct_wheat)) +
+  geom_point(color = hbs_maroon) + 
+  geom_smooth(method = "lm", color = hbs_black) +  
+  labs(
+    title = "Relationship Between pct_corn and pct_wheat in Farmland",
+    x = "Percentage of Farmland Classified as Corn",
+    y = "Percentage of Farmland Classified as Wheat",
+    caption = "HBS Quant Exercise"
+  ) +
+  theme_minimal()
+
+# Print the plot
+print(scatterPlotVisualization)
+
+```
+
+```{r}
+
+# 7. Create a new variable tractors_per_farm equal to the number of tractors per farm, and label the variable appropriately.
+
+df6 <- df5 %>%
+  mutate(
+    tractors_per_farm = tractors / farms
+  )
+
+label(df6$tractors_per_farm) <- "Amount of tractors per farm"
+
+View(df6)
+
+
+```
+
+```{r}
+
+# 8. Run a regression to examine the relationship between the independent variables pct_corn and pct_wheat and dependent variable tractors_per_farm.
+
+regression_1 <- lm(tractors_per_farm ~ pct_corn + pct_wheat, data = df6)
+
+summary(regression_1)
+
+```
+
+
+```{r}
+
+# 9. Perform the same regression, but this time take state fixed effects into account.
+
+regression_2 <- lm(tractors_per_farm ~ pct_corn + pct_wheat + factor(STATE), data = df6)
+
+summary(regression_2)
+
+
+```
+
+```{r}
+
+# 10. Interpret the coefficients, significance, and goodness of fit for each of these regressions, and explain what the results indicate. For the second regression, include your interpretation of the state fixed effects.
+
+# Refer to Google Doc
+
+```
